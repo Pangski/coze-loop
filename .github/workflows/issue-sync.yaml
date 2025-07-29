@@ -1,35 +1,61 @@
-name: Issue Notification
+name: Thrift Syntax Validation
 
-on:
-  issues:
-    types: ['opened', 'reopened', 'closed']
+on: 
+  push:
+    paths:
+      - 'idl/**'
+      - '.github/workflows/idl.yaml'
+  pull_request:
+    paths:
+      - 'idl/**'
+      - '.github/workflows/idl.yaml'
 
 jobs:
-  sync:
-    name: Sync Issues
+  validate-thrift:
+    name: 🧪 Validate Thrift Files
     runs-on: ubuntu-latest
-    env:
-      NODE_VERSION: '18'
-      LARK_APP_ID: ${{ secrets.COZELOOP_LARK_APP_ID }}
-      LARK_APP_SECRET: ${{ secrets.COZELOOP_LARK_APP_SECRET }}
-      ISSUE_ACTION: ${{ github.event.action }}
-      ISSUE_NUMBER: ${{ github.event.issue.number }}
-      ISSUE_URL: ${{ github.event.issue.html_url }}
-      ISSUE_TITLE: ${{ github.event.issue.title }}
-      ISSUE_BODY: ${{ github.event.issue.body }}
-      REPO_NAME: ${{ github.repository }}
+    timeout-minutes: 10
 
     steps:
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Go
+        uses: actions/setup-go@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          go-version: '1.21'
 
-      - name: Install ci-tools
+      - name: 📦 Install Kitex Tools
         run: |
-          npm install -g @cozeloop/ci-tools@0.0.4
+          go install github.com/cloudwego/thriftgo@v0.4.1
+          go install github.com/cloudwego/kitex/tool/cmd/kitex@v0.13.1
+          go install github.com/cloudwego/thrift-gen-validator@v0.2.6
 
-      - name: Notify via lark
+      - name: ✅ Validate Thrift Files
         run: |
-          cozeloop-ci lark sync-issue \
-          --chat-id oc_d02b85f9799a0c35cf164d3a939ef30e
+          set -euo pipefail
+
+          TEMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TEMP_DIR"' EXIT
+          echo "Using temporary directory: $TEMP_DIR"
+
+          ERROR_FOUND=0
+
+          for thrift_file in $(find "$GITHUB_WORKSPACE/idl" -name '*.thrift'); do
+            echo "🔍 Validating $thrift_file..."
+            if ! kitex -streamx -thrift ignore_initialisms=false -module=temp "$thrift_file" > "$TEMP_DIR/output.log" 2>&1; then
+              echo "❌ Error in $thrift_file:"
+              cat "$TEMP_DIR/output.log"
+              echo ""
+              ERROR_FOUND=1
+            else
+              echo "✅ $thrift_file passed validation"
+            fi
+          done
+
+          if [ $ERROR_FOUND -eq 1 ]; then
+            echo "❗ Thrift validation failed for one or more files."
+            exit 1
+          else
+            echo "🎉 All Thrift files validated successfully!"
+          fi
