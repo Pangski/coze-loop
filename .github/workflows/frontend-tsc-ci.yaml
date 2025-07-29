@@ -14,31 +14,31 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup:
-    name: TS Check
+  ts-check:
+    name: 🔎 TypeScript Check
     runs-on: ubuntu-latest
     env:
       NODE_VERSION: '18'
-      # should be ci trigger user
       GIT_USER_NAME: 'mocayo'
       GIT_USER_EMAIL: 'qihai@bytedance.com'
+
     steps:
-      - name: Checkout
+      - name: 🛎️ Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Config Git User
+      - name: ⚙️ Set Git Identity
         run: |
-          git config --local user.name ${{ env.GIT_USER_NAME }}
-          git config --local user.email ${{ env.GIT_USER_EMAIL }}
+          git config --local user.name "${{ env.GIT_USER_NAME }}"
+          git config --local user.email "${{ env.GIT_USER_EMAIL }}"
 
-      - name: Setup Node
+      - name: 🧰 Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache
+      - name: 🧠 Cache Rush Store
         uses: actions/cache@v4
         with:
           path: |
@@ -50,7 +50,7 @@ jobs:
             ${{ runner.os }}-rush-store-main
             ${{ runner.os }}-rush-store
 
-      - name: Changed Files
+      - name: 🔍 Detect Changed Files
         uses: tj-actions/changed-files@v46.0.5
         with:
           files: |
@@ -58,14 +58,14 @@ jobs:
           json: true
           write_output_files: true
 
-      - name: Install Dependencies
+      - name: 📦 Install Only Affected Dependencies
         run: |
           node common/scripts/install-run-rush.js increment --action install -p .github/outputs/all_changed_files.json
 
-      - name: Prepare Basic Packages
+      - name: 🔧 Prepare Core Packages
         run: |
           node common/scripts/install-run-rush.js pre-build -v
 
-      - name: TS Check
+      - name: ✅ Run TypeScript Check
         run: |
           node common/scripts/install-run-rush.js increment --action ts-check -p .github/outputs/all_changed_files.json
