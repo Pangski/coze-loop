@@ -68,8 +68,6 @@ body:
         - "High - Would significantly improve my experience"
         - "Medium - Nice to have"
         - "Low - Minor improvement"
-    validations:
-      required: false
 
   - type: dropdown
     id: component
@@ -84,8 +82,6 @@ body:
         - "Infrastructure"
         - "Documentation"
         - "Other"
-    validations:
-      required: false
 
   - type: textarea
     id: alternatives
